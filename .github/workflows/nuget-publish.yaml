@@ -5,7 +5,7 @@ on:
         
 jobs:
     discover:
-        uses: School-TestExam/core-pipelines/.github/workflows/git-version.yaml@main
+        uses: School-TestExam/core-pipelines/.github/workflows/git-versioning.yaml@main
         secrets: inherit
     
     build-and-publish:
