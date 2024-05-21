@@ -1,0 +1,43 @@
+name: Build and Pubkish NuGet
+
+on:
+    workflow_call:
+        
+jobs:
+    discover:
+        uses: School-TestExam/core-pipelines/.github/workflows/git-version.yaml@main
+        secrets: inherit
+    
+    build-and-publish:
+        runs-on: ubuntu-latest
+        needs: discover
+        steps:
+            -   uses: actions/checkout@v2
+
+            -   name: Setup .NET Core
+                uses: actions/setup-dotnet@v1
+                with:
+                    dotnet-version: '8.0.x'
+            
+            -   name: Restore dependencies
+                run: dotnet restore
+        
+            -   name: Build
+                run: dotnet build --configuration Release --no-restore
+        
+            -   name: Test
+                run: dotnet test --no-restore --verbosity normal
+            
+            -   name: Pack
+                run: dotnet pack --configuration Release --no-build -p:PackageVersion=${{ needs.discover.outputs.version }} --output ./nupkgs
+            
+            -   name: Publish NuGet Packages
+                run: find ./nupkgs -name "*.nupkg" -exec dotnet nuget push {} --source "github" --skip-duplicate --api-key ${{ secrets.GITHUB_TOKEN }}
+                env:
+                    DOTNET_ROOT: ${{ runner.tool_cache}}/dotnet
+            
+            -   name: Tag version
+                if: github.ref == 'refs/heads/main' && github.event_name != 'pull-request'
+                run: |
+                    git tag ${{ needs.discover.outputs.version_tag }}
+                    git push origin --tags

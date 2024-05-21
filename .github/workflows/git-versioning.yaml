@@ -1,0 +1,54 @@
+name: Determine version for build
+
+on:
+    workflow_call:
+        outputs:
+            version:
+                value: ${{ jobs.version.outputs.version }}
+            version_tag:
+                value: ${{ jobs.version.outputs.version_tag }}
+
+jobs:
+    version:
+        runs-on: ubuntu-latest
+        outputs:
+            version: ${{ steps.version.outputs.result }}
+            version_tag: ${{ steps.semver.outputs.version_tag }}
+        steps:
+            -   uses: actions/checkout@v4
+                with:
+                    fetch-depth: 0
+            
+            -   name: Determine version
+                id: semver
+                uses: Paulhatch/semantic-version@v5.0.3
+                with:
+                    tag_prefix: "v1"
+                    major_pattern: "major:"
+                    minor_pattern: "minor:"
+                    version_format: "${major}.${minor}.${patch}-rc${increment}"
+
+            -   name: Output vversion
+                id: version
+                uses: actions/github-script@v6.3.3
+                with:
+                    result-encoding: string
+                    script: |
+                      var release = "${{ steps.semver.outputs.version }}";
+                      var ref = "${{ github.ref }}";
+          
+                      if (ref == "refs/heads/main") 
+                      {
+                        return release.substring(0, release.indexOf("-"));
+                      }
+          
+                      var split = release.split("rc");
+          
+                      if (split[1].length == 1) 
+                      {
+                        split[1] = "0" + split[1];
+                      }
+          
+                      var head_ref = "${{ github.head_ref }}";
+          
+                      return split[0] + "rc" + split[1] + "-" + head_ref.replaceAll('/', '-');
