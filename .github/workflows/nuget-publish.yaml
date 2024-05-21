@@ -3,6 +3,13 @@ name: Build and Pubkish NuGet
 on:
     workflow_call:
         
+permissions:
+    contents: write
+    pull-requests: write
+    statuses: write
+    packages: write
+    checks: write
+
 jobs:
     discover:
         uses: School-TestExam/core-pipelines/.github/workflows/git-versioning.yaml@main
