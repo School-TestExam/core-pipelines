@@ -32,7 +32,7 @@ jobs:
                 run: dotnet pack --configuration Release --no-build -p:PackageVersion=${{ needs.discover.outputs.version }} --output ./nupkgs
             
             -   name: Publish NuGet Packages
-                run: find ./nupkgs -name "*.nupkg" -exec dotnet nuget push {} --source "github" --skip-duplicate --api-key ${{ secrets.GITHUB_TOKEN }}
+                run: find ./nupkgs -name "*.nupkg" -exec dotnet nuget push {} --source "github" --skip-duplicate --api-key ${{ secrets.GITHUB_TOKEN }} \;
                 env:
                     DOTNET_ROOT: ${{ runner.tool_cache}}/dotnet
             
