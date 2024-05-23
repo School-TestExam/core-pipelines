@@ -10,6 +10,12 @@ permissions:
     packages: write
     checks: write
 
+env:
+    TESTCONTAINERS_HOST_OVERRIDE: "host.docker.internal"
+    TESTCONTAINERS_RYUK_DISABLED: "true"
+    ACTIONS_ALLOW_UNSECURE_COMMANDS: true # This is needed for running: "echo set-env"
+    NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages  # This should ensure that NuGet packages are always stored in the location
+
 jobs:
     discover:
         uses: School-TestExam/core-pipelines/.github/workflows/git-versioning.yaml@main
@@ -19,12 +25,21 @@ jobs:
         runs-on: ubuntu-latest
         needs: discover
         steps:
-            -   uses: actions/checkout@v2
-
-            -   name: Setup .NET Core
-                uses: actions/setup-dotnet@v1
+            -   uses: actions/checkout@v4
                 with:
-                    dotnet-version: '8.0.x'
+                    fetch-depth: 0
+
+            -   name: Set env vars
+                run: |
+                    echo "NUGET_USERNAME=${{ vars.NUGET_USERNAME }}" >> $GITHUB_ENV
+                    echo "NUGET_TOKEN=${{ secrets.ORG_FULL_ACCESS_TOKEN }}" >> $GITHUB_ENV
+
+            -   name: Configure dotnet
+                uses: actions/setup-dotnet@v4
+                with:
+                    source-url: ${{ vars.NUGET_LOCATION }}
+                env:
+                    NUGET_AUTH_TOKEN: ${{ secrets.ORG_FULL_ACCESS_TOKEN }}
             
             -   name: Restore dependencies
                 run: dotnet restore
