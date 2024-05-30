@@ -87,7 +87,7 @@ jobs:
                     reporter: dotnet-trx    # Format of the test results
 
     build-edge:
-        if: always() && !cancelled() && (needs.test.result == 'success' || needs.test.result == 'skipped')
+        if: always() && !cancelled() && (needs.test.result == 'success' || needs.test.result == 'skipped') && github.event_name == 'pull_request'
         name: create edge build
         needs: [discover, test]
         uses: School-TestExam/core-pipelines/.github/workflows/dotnet-image-publish.yaml@main
@@ -98,7 +98,7 @@ jobs:
             latest: false
 
     build-latest:
-        if: always() && !cancelled() && (needs.test.result == 'success' || needs.test.result == 'skipped')
+        if: always() && !cancelled() && (needs.test.result == 'success' || needs.test.result == 'skipped') && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         name: create latest build
         needs: [discover, test]
         uses: School-TestExam/core-pipelines/.github/workflows/dotnet-image-publish.yaml@main
