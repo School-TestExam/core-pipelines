@@ -1,4 +1,4 @@
-name: Build and publish Docker image to Github
+name: Build and publish Docker image to Dockerhub
 
 on:
     workflow_call:
