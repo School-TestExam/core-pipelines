@@ -37,7 +37,7 @@ jobs:
                     NUGET_AUTH_TOKEN: ${{ secrets.ORG_FULL_ACCESS_TOKEN }}
 
             -   name: Test
-                run: dotnet test --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage                
+                run: dotnet test --logger "trx" --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
     
             -   name: Check files
                 if: always() && !cancelled()
