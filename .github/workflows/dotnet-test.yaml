@@ -51,7 +51,15 @@ jobs:
                 uses: danielpalme/ReportGenerator-Github-Action@5.2.4
                 with:
                     reports: "coverage/**/coverage.cobertura.xml"
-            
+    
+            -   name: Code coverage
+                if: always() && !cancelled() && steps.check_files.outputs.files_exists == 'true'
+                uses: irongut/CodeCoverageSummary@v1.3.0
+                with:
+                    filename: coveragereport/Cobertura.xml
+                    format: markdown
+                    output: both
+
             -   name: Code coverage comment
                 if: always() && !cancelled() && steps.check_files.outputs.files_exists == 'true' && github.event_name == 'pull_request'
                 uses: marocchino/sticky-pull-request-comment@v2
