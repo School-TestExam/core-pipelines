@@ -79,10 +79,10 @@ jobs:
                 with:
                     result-encoding: string
                     script: |
-                        var tags = ['${{inputs.repository}}:edge', '${{inputs.repository}}:${{ inputs.version }}'];
-            
+                        var tags = ['${{ env.REGISTRY }}/${{ inputs.repository }}:edge', '${{ env.REGISTRY }}/${{ inputs.repository }}:${{ inputs.version }}'];
+
                         if (${{ inputs.latest == true }}) {
-                            tags.push('${{inputs.repository}}:latest');
+                        tags.push('${{ env.REGISTRY }}/${{ inputs.repository }}:latest');
                         }
             
                         return tags.join('\n');
