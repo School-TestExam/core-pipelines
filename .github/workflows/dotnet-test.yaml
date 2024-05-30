@@ -1,0 +1,68 @@
+name: Dotnet Tests
+on:
+    workflow_call:
+        secrets:
+            ORG_FULL_ACCESS_TOKEN:
+                required: true
+
+permissions:
+    contents: write
+    pull-requests: write
+    statuses: write
+    packages: write
+    checks: write
+
+env:
+    TESTCONTAINERS_HOST_OVERRIDE: "host.docker.internal"
+    TESTCONTAINERS_RYUK_DISABLED: "true"
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v4
+                with: 
+                    fetch-depth: 0
+            
+            -   name: Set env vars
+                run: |
+                    echo "NUGET_USERNAME=${{ vars.NUGET_USERNAME }}" >> $GITHUB_ENV
+                    echo "NUGET_TOKEN=${{ secrets.ORG_FULL_ACCESS_TOKEN }}" >> $GITHUB_ENV
+
+            -   name: Configure dotnet
+                uses: actions/setup-dotnet@v4
+                with:
+                    source-url: ${{ vars.NUGET_LOCATION }}
+                env:
+                    NUGET_AUTH_TOKEN: ${{ secrets.ORG_FULL_ACCESS_TOKEN }}
+
+            -   name: Test
+                run: dotnet test --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage                
+    
+            -   name: Check files
+                if: always() && !cancelled()
+                id: check_files
+                uses: andstor/file-existence-action@v3.0.0
+                with:
+                    files: "coverage/**/coverage.cobertura.xml"
+
+            -   name: Merge Cobertura test reports
+                if: always() && !cancelled() && steps.check_files.outputs.files_exists == 'true'
+                uses: danielpalme/ReportGenerator-Github-Action@5.2.4
+                with:
+                    reports: "coverage/**/coverage.cobertura.xml"
+            
+            -   name: Code coverage comment
+                if: always() && !cancelled() && steps.check_files.outputs.files_exists == 'true' && github.event_name == 'pull_request'
+                uses: marocchino/sticky-pull-request-comment@v2
+                with:
+                    recreate: true
+                    path: code-coverage-results.md
+
+            -   name: Display test report
+                if: always() && !cancelled() && steps.check_files.outputs.files_exists == 'true' && github.event_name == 'pull_request'
+                uses: dorny/test-reporter@v1
+                with:
+                    name: Test Results      # Name of the check run which will be created
+                    path: coverage/*.trx    # Path to the test results
+                    reporter: dotnet-trx    # Format of the test results
