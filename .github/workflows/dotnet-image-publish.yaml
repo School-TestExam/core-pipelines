@@ -1,35 +1,55 @@
-name: Build and publish Docker image to Github
+name: Build and publish Docker image to Dockerhub
 
 on:
     workflow_call:
         inputs:
-            latest: 
-                description: "Latest version"
-                required: true
-                type: boolean
-            version:
-                description: "New version"
-                required: true
-                type: string
             repository:
-                description: "Repository. E.g. 'School-TestExam/identity' "
+                description: "Repository HAS TO BE THE USER. Otherwise dockerhub wont auth. E.g. 'Hoberg/services-identity' "
                 required: true
                 type: string
+        secrets:
+            DOCKERHUB_USERNAME:
+                required: true
+            DOCKERHUB_TOKEN:
+                required: true
+            ORG_FULL_ACCESS_TOKEN:
+                required: true
 
-env:
-    REGISTRY: ghcr.io
-    NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages  # This should ensure that NuGet packages are always stored in the location
-    IMAGE_NAME: ${{ github.repository }}
+# Only allow one deployment task to run at a time
+concurrency:
+    group: ${{ inputs.repository }}-${{ github.ref }} #Example: "School-TestExam/identity-[branch]" / School-TestExam/identity-main
+    cancel-in-progress: true
+
+permissions:
+    contents: write
+    pull-requests: write
+    statuses: write
+    packages: write
+    checks: write
 
 jobs:
+    discover:
+        uses: School-TestExam/core-pipelines/.github/workflows/git-versioning.yaml@main
+        secrets: inherit
+    
+    test:
+        uses: School-TestExam/core-pipelines/.github/workflows/dotnet-test.yaml@feature/11-githubimage-workflow
+        secrets: inherit
 
     build-and-publish:
         runs-on: ubuntu-latest
+        needs: [discover, test]
+        if: always() && !cancelled() && (needs.test.result == 'success' || needs.test.result == 'skipped')
         steps:
             -   uses: actions/checkout@v4
                 with: 
                     fetch-depth: 0
         
+            -   name: Set env vars
+                run: |
+                    echo "NUGET_USERNAME=${{ vars.NUGET_USERNAME }}" >> $GITHUB_ENV
+                    echo "NUGET_TOKEN=${{ secrets.ORG_FULL_ACCESS_TOKEN }}" >> $GITHUB_ENV
+
             -   name: Configure dotnet
                 uses: actions/setup-dotnet@v4
                 with:
@@ -43,59 +63,40 @@ jobs:
             -   name: Configure buildx
                 uses: docker/setup-buildx-action@v3
 
-            -   name: Github Packages login
-                uses: docker/login-action@v3
+            -   name: Dockerhub login
+                uses: docker/login-action@v2
                 with:
-                    registry: ${{ env.REGISTRY }}
-                    username: ${{ github.actor }}
-                    password: ${{ secrets.GITHUB_TOKEN }}
-
-            -   name: Build tags
-                id: tags
-                uses: actions/github-script@v7
-                with:
-                    result-encoding: string
-                    script: |
-                        var tags = ['edge', '${{ inputs.version }}'];
-            
-                        if (${{ inputs.latest == true }}) {
-                            tags.push('latest');
-                        }
-            
-                        return tags.join('\n');
+                    username: ${{ secrets.DOCKERHUB_USERNAME }}
+                    password: ${{ secrets.DOCKERHUB_TOKEN }}
     
-            -   name: Docker meta
-                id: meta
-                uses: docker/metadata-action@v5
-                with:
-                    tags: ${{ steps.tags.outputs.result }}
-                    images: |
-                        ${{ inputs.repository }}
-                        ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-
-            -   name: Build docker tags
-                id: docker-tags
-                uses: actions/github-script@v7
-                with:
-                    result-encoding: string
-                    script: |
-                        var tags = ['${{inputs.repository}}:edge', '${{inputs.repository}}:${{ inputs.version }}'];
-            
-                        if (${{ inputs.latest == true }}) {
-                            tags.push('${{inputs.repository}}:latest');
-                        }
-            
-                        return tags.join('\n');
-                        
-            -   name: Build and push container release
-                uses: docker/build-push-action@v5
+            -   name: Build and push Docker image release
+                if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+                uses: docker/build-push-action@v4
                 with:
                     push: true
                     tags: |
-                        ${{ steps.docker-tags.outputs.result}}
-                        ${{ steps.meta.outputs.tags }}
-                    labels: ${{ steps.meta.outputs.labels }}
+                        ${{ inputs.repository }}:latest
+                        ${{ inputs.repository }}:edge
+                        ${{ inputs.repository }}:${{ needs.discover.outputs.version }}
                     build-args: |
-                        version=${{ inputs.version }}
+                        version=${{ needs.discover.outputs.version }}
                         NUGET_USERNAME=${{ vars.NUGET_USERNAME }}
                         NUGET_TOKEN=${{ secrets.ORG_FULL_ACCESS_TOKEN }}
+
+            -   name: Build and push docker image pre-release
+                if: github.event_name == 'pull_request'
+                uses: docker/build-push-action@v4
+                with:
+                        push: true
+                        tags: |
+                            ${{ inputs.repository }}:edge
+                        build-args: |
+                            version=${{ needs.discover.outputs.version }}
+                            NUGET_USERNAME=${{ vars.NUGET_USERNAME }}
+                            NUGET_TOKEN=${{ secrets.ORG_FULL_ACCESS_TOKEN }}
+                
+            -   name: Tag version
+                if: github.ref == 'refs/heads/main' && github.event_name != 'pull-request'
+                run: |
+                    git tag ${{ needs.discover.outputs.version_tag }}
+                    git push origin --tags
