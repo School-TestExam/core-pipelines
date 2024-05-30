@@ -46,7 +46,7 @@ jobs:
             -   name: Github Packages login
                 uses: docker/login-action@v3
                 with:
-                    registry: ${{ env.REGISTRY }}
+                    registry: ghcr.io
                     username: ${{ github.actor }}
                     password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -71,7 +71,7 @@ jobs:
                     tags: ${{ steps.tags.outputs.result }}
                     images: |
                         ${{ inputs.repository }}
-                        ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+                        ghcr.io/${{ env.IMAGE_NAME }}
 
             -   name: Build docker tags
                 id: docker-tags
@@ -79,10 +79,10 @@ jobs:
                 with:
                     result-encoding: string
                     script: |
-                        var tags = ['${{ env.REGISTRY }}/${{ inputs.repository }}:edge', '${{ env.REGISTRY }}/${{ inputs.repository }}:${{ inputs.version }}'];
+                        var tags = ['ghcr.io/${{ inputs.repository }}:edge', 'ghcr.io/${{ inputs.repository }}:${{ inputs.version }}'];
 
                         if (${{ inputs.latest == true }}) {
-                        tags.push('${{ env.REGISTRY }}/${{ inputs.repository }}:latest');
+                        tags.push('ghcr.io/${{ inputs.repository }}:latest');
                         }
             
                         return tags.join('\n');
