@@ -15,6 +15,18 @@ on:
             ORG_FULL_ACCESS_TOKEN:
                 required: true
 
+# Only allow one deployment task to run at a time
+concurrency:
+    group: ${{ inputs.repository }}-${{ github.ref }} #Example: "School-TestExam/identity-[branch]" / School-TestExam/identity-main
+    cancel-in-progress: true
+
+permissions:
+    contents: write
+    pull-requests: write
+    statuses: write
+    packages: write
+    checks: write
+
 jobs:
     discover:
         uses: School-TestExam/core-pipelines/.github/workflows/git-versioning.yaml@main
