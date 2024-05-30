@@ -22,6 +22,7 @@ jobs:
     
     test:
         uses: School-TestExam/core-pipelines/.github/workflows/dotnet-test.yaml@feature/11-githubimage-workflow
+        secrets: inherit
 
     build-and-publish:
         runs-on: ubuntu-latest
