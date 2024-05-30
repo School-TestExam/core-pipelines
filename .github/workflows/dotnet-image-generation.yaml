@@ -99,7 +99,7 @@ jobs:
 
     build-latest:
         if: always() && !cancelled() && (needs.test.result == 'success' || needs.test.result == 'skipped')
-        name: create edge build
+        name: create latest build
         needs: [discover, test]
         uses: School-TestExam/core-pipelines/.github/workflows/dotnet-image-publish.yaml@main
         secrets: inherit
